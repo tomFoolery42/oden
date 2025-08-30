@@ -35,6 +35,8 @@ pub fn build(b: *std.Build) void {
 
     const sqlite = b.dependency("fridge", .{ .bundle = true });
     exe.root_module.addImport("fridge", sqlite.module("fridge"));
+    const zig_ai = b.dependency("zig_ai", .{});
+    exe.root_module.addImport("zig_ai", zig_ai.module("zig-ai"));
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default

@@ -40,6 +40,9 @@
             .url = "git+https://github.com/cztomsik/fridge?ref=main#2b7750f3dfbb805a5293d6f19fec4632f0b82d56",
             .hash = "fridge-0.9.5-3GyIivCoAQBP77jReAWsKQnNvuRxHaslWHOznHO4f2Sy",
         },
+        .zig_ai = .{
+            .path = "zig-ai",
+        }
     },
     .paths = .{
         "build.zig",
