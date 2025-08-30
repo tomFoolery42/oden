@@ -9,11 +9,18 @@ const fr = @import("fridge");
 const std = @import("std");
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
+
 const BUF_SIZE = 16;
 const EventQueue = queues.MessageQueue(event.Event, 100);
 const ID = schema.ID;
 const Socket = socket(event.Event);
 const String = schema.String;
+
+const Config = struct {
+    ai_url:     String,
+    database:   String,
+    metadata:   [:0]const u8,
+};
 
 
 fn socketHandle() void {
@@ -108,6 +115,15 @@ fn insert(alloc: Allocator, db: *fr.Session, client: *ai.Client, og_path: String
     });
 }
 
+fn open_config(alloc: std.mem.Allocator, config_file: []const u8) !std.json.Parsed(Config) {
+    var file = try std.fs.cwd().openFile(config_file, .{});
+    defer file.close();
+
+    const json = try file.reader().readAllAlloc(alloc, std.math.maxInt(usize));
+    defer alloc.free(json);
+    return try std.json.parseFromSlice(Config, alloc, json, .{.allocate = .alloc_always, .ignore_unknown_fields = true});
+}
+
 fn sha256_digest(file: std.fs.File) ![Sha256.digest_length]u8 {
     var sha256 = Sha256.init(.{});
     const rdr = file.reader();
@@ -155,10 +171,12 @@ pub fn main() !void {
     defer std.debug.assert(gpa.deinit() == .ok);
     const alloc = gpa.allocator();
 
-    var client = try ai.Client.init(alloc, "https://{some url. Need config soon}", "ollama", null);
+    const config = try open_config(alloc, "config.json");
+    defer config.deinit();
+    var client = try ai.Client.init(alloc, config.value.ai_url, "ollama", null);
     defer client.deinit();
 
-    var db = try fr.Session.open(fr.SQLite3, alloc, .{ .filename = "database/metadata.sqlite" });
+    var db = try fr.Session.open(fr.SQLite3, alloc, .{ .filename = config.value.metadata });
     defer db.deinit();
     databaseInit(alloc, &db, &client) catch {
         std.log.debug("Figure out if there is a way to verify db being created other than catch.", .{});
