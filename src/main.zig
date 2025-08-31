@@ -31,14 +31,14 @@ fn socketHandle() void {
 }
 
 fn databaseInit(alloc: Allocator, db: *fr.Session, client: *ai.Client) !void {
-    try db.conn.execAll(
+    db.conn.execAll(
         \\CREATE TABLE Image (
         \\  id INTEGER PRIMARY KEY,
         \\  description TEXT NOT NULL,
         \\  filename TEXT NOT NULL,
         \\  tags TEXT NOT NULL
         \\);
-    );
+    ) catch {std.log.info("table already exists", .{});};
 
     // initial integrity check. If a file is missing, report and remove
     for (try db.query(schema.Image).findAll()) |image| {
@@ -56,7 +56,9 @@ fn databaseInit(alloc: Allocator, db: *fr.Session, client: *ai.Client) !void {
     while (try walker.next()) |next| {
         const ext = std.fs.path.extension(next.basename);
         if (std.mem.eql(u8, ext, ".jpg")) {
-            _ = try insert(alloc, db, client, next.basename);
+            const path = try std.fmt.allocPrint(alloc, "{s}/{s}", .{"database", next.basename});
+            defer alloc.free(path);
+            _ = try insert(alloc, db, client, path);
         }
     }
 }
@@ -98,12 +100,14 @@ fn exists(filename: String) bool {
 }
 
 fn insert(alloc: Allocator, db: *fr.Session, client: *ai.Client, og_path: String) !ID {
+    std.log.info("inserting {s}", .{og_path});
     const file = try std.fs.cwd().openFile(og_path, .{});
     defer file.close();
     const extension = std.fs.path.extension(og_path);
     const digest = try sha256_digest(file);
-    const hashed_name = try std.fmt.allocPrint(alloc, "database/{s}.{s}", .{std.fmt.fmtSliceHexLower(&digest), extension});
+    const hashed_name = try std.fmt.allocPrint(alloc, "database/{s}{s}", .{std.fmt.fmtSliceHexLower(&digest), extension});
     defer alloc.free(hashed_name);
+    try std.fs.cwd().copyFile(og_path, std.fs.cwd(), hashed_name, .{});
     const description = try description_generate(alloc, client, hashed_name);
     defer alloc.free(description);
     const tags = try tags_generate(alloc, client, hashed_name);
@@ -178,8 +182,8 @@ pub fn main() !void {
 
     var db = try fr.Session.open(fr.SQLite3, alloc, .{ .filename = config.value.metadata });
     defer db.deinit();
-    databaseInit(alloc, &db, &client) catch {
-        std.log.debug("Figure out if there is a way to verify db being created other than catch.", .{});
+    databaseInit(alloc, &db, &client) catch |err| {
+        std.log.debug("Figure out if there is a way to verify db being created other than catch.\n{s}", .{std.json.fmt(err, .{})});
     };
     var queue = EventQueue.init();
     defer queue.deinit();
