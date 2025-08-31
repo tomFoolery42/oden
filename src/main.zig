@@ -71,12 +71,7 @@ fn description_generate(alloc: Allocator, client: *ai.Client, filename: String) 
     };
     defer {
         for (messages) |next| {
-            for (next.content) |content| {
-                switch (content) {
-                    .Image => |image| alloc.free(image.image_url),
-                    else => {},
-                }
-            }
+            next.deinit();
         }
     }
 
@@ -88,7 +83,7 @@ fn description_generate(alloc: Allocator, client: *ai.Client, filename: String) 
     }, false);
     defer response.deinit();
 
-    return response.value.choices[0].message.content;
+    return alloc.dupe(u8, response.value.choices[0].message.content);
 }
 
 fn exists(filename: String) bool {
@@ -150,12 +145,7 @@ fn tags_generate(alloc: Allocator, client: *ai.Client, filename: String) !String
     };
     defer {
         for (messages) |next| {
-            for (next.content) |content| {
-                switch (content) {
-                    .Image => |image| alloc.free(image.image_url),
-                    else => {},
-                }
-            }
+            next.deinit();
         }
     }
 
@@ -167,7 +157,7 @@ fn tags_generate(alloc: Allocator, client: *ai.Client, filename: String) !String
     }, false);
     defer response.deinit();
 
-    return response.value.choices[0].message.content;
+    return alloc.dupe(u8, response.value.choices[0].message.content);
 }
 
 pub fn main() !void {
