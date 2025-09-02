@@ -102,7 +102,7 @@ test "init" {
     defer std.debug.assert(gpa.deinit() == .ok);
     const alloc = gpa.allocator();
 
-    var database = try Database.init(alloc, "https://test.url/v1", "database", "database/test.sqlite");
+    var database = try Database.init(alloc, "https://some.url/v1", "database", "database/test.sqlite");
     defer database.deinit();
 
     _ = try database.insert("pictures/meme/1047646.jpg");
@@ -123,10 +123,8 @@ test "search" {
     defer std.debug.assert(gpa.deinit() == .ok);
     const alloc = gpa.allocator();
 
-    var database = try Database.init(alloc, "https://test.url/v1", "database", "database/test.sqlite");
+    var database = try Database.init(alloc, "https://some.url/v1", "database", "database/test.sqlite");
     defer database.deinit();
-    var queue = EventQueue.init();
-    defer queue.deinit();
 
     std.log.info("basic search", .{});
     for (try database.findAll()) |image| {
@@ -134,6 +132,6 @@ test "search" {
     }
 
     std.log.info("col search", .{});
-    const results = try database.like("tags LIKE", "%meme%");
-    std.log.info("search: {s}\t found: {s}", .{"better", std.json.fmt(results, .{})});
+    const results = try database.like("tags", "meme");
+    std.log.info("search: {s}\t found: {s}", .{"meme", std.json.fmt(results, .{})});
 }

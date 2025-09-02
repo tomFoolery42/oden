@@ -8,10 +8,13 @@ const Sha256 = std.crypto.hash.sha2.Sha256;
 
 const ID = schema.ID;
 const BUF_SIZE = 16;
+const DatabaseError = error{
+    NotFound,
+};
 const Self = @This();
 const String = schema.String;
 
-const description_system = "You are the worlds greatest meme smith. Your usage of words to describe images are unmatched. Please apply your abilities to the following image. Try to keep it under 2 paragraphs.";
+const description_system = "You are the worlds greatest meme smith. Your usage of words to describe images are unmatched. Please apply your abilities to the following image. If there are any words on the image, take note of them. If there are any recognizable characters, take note of them. Other than that, try to keep your description under 1 paragraph.";
 const model = "gemma3:4b";
 const tags_system = "You are the worlds greatest meme smith. You generate tags to give breif descriptions of images. Give a list of tags that would apply to the following image. Your response should be in the form of a comma separated list.";
 
@@ -37,6 +40,12 @@ pub fn init(alloc: Allocator, ollama_url: String, database_root: String, metadat
         \\  tags TEXT NOT NULL
         \\);
     ) catch {std.log.info("table already exists", .{});};
+    self.db.conn.execAll(
+        \\CREATE TABLE hash (
+        \\  id TEXT PRIMARY KEY,
+        \\  image_id INTEGER
+        \\);
+    ) catch {std.log.info("hash table already exists", .{});};
 
     // initial integrity check. If a file is missing, report and remove
     for (try self.db.query(schema.Image).findAll()) |image| {
@@ -122,22 +131,40 @@ pub fn insert(self: *Self, og_path: String) !ID {
     defer file.close();
     const extension = std.fs.path.extension(og_path);
     const digest = try sha256Digest(file);
-    const hashed_name = try std.fmt.allocPrint(self.alloc, "{s}/{s}{s}", .{self.database_root, std.fmt.fmtSliceHexLower(&digest), extension});
+    const hashed = try std.fmt.allocPrint(self.alloc, "{s}", .{std.fmt.fmtSliceHexLower(&digest)});
+    defer self.alloc.free(hashed);
+    const hashed_name = try std.fmt.allocPrint(self.alloc, "{s}/{s}{s}", .{self.database_root, hashed, extension});
     defer self.alloc.free(hashed_name);
-    try std.fs.cwd().copyFile(og_path, std.fs.cwd(), hashed_name, .{});
-    const description = try self.descriptionGenerate(hashed_name);
-    defer self.alloc.free(description);
-    const tags = try self.tagsGenerate(hashed_name);
-    defer self.alloc.free(tags);
 
-    return self.db.insert(schema.Image, .{
-        .filename = hashed_name,
-        .description = description,
-        .tags = tags,
-    });
+    const existing = try self.db.query(schema.Hash).find(hashed);
+    if (existing) |hash| {
+        if (try self.db.query(schema.Image).find(hash.image_id)) |found| {
+            return found.id;
+        }
+        else {
+            return DatabaseError.NotFound;
+        }
+    }
+    else {
+        try std.fs.cwd().copyFile(og_path, std.fs.cwd(), hashed_name, .{});
+        const description = try self.descriptionGenerate(hashed_name);
+        defer self.alloc.free(description);
+        const tags = try self.tagsGenerate(hashed_name);
+        defer self.alloc.free(tags);
+
+        return self.db.insert(schema.Image, .{
+            .filename = hashed_name,
+            .description = description,
+            .tags = tags,
+        });
+    }
 }
 
-pub fn like(self: *Self, query: String, search: String) ![]const schema.Image {
+pub fn like(self: *Self, field: String, target: String) ![]const schema.Image {
+    const query = try std.fmt.allocPrint(self.alloc, "{s} LIKE", .{field});
+    defer self.alloc.free(query);
+    const search = try std.fmt.allocPrint(self.alloc, "%{s}%", .{target});
+    defer self.alloc.free(search);
     const request = self.db.query(schema.Image).whereRaw(query, search);
     return request.findAll();
 }
