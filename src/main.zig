@@ -62,30 +62,23 @@ pub fn main() !void {
                         try database.delete(id);
                     }
                 },
-//                .Fetch => |filter| {
-//                    const request = switch (filter.value) {
-//                        .description    => |desc| ret: {
-//                            const filtering = std.fmt.allocPrint(alloc, "%{s}%", .{desc});
-//                            defer alloc.free(filtering);
-//                            break :ret database.query(schema.Image).whereRaw("description LIKE", desc);
-//                        },
-//                        .filename       => |name| ret: {
-//                            const filtering = std.fmt.allocPrint(alloc, "%{s}%", .{name});
-//                            defer alloc.free(filtering);
-//                            break :ret database.query(schema.Image).whereRaw("filename LIKE", name);
-//                        },
-//                        .tags           => |tags| ret: {
-//                            const filtering = std.fmt.allocPrint(alloc, "%{s}%", .{tags});
-//                            defer alloc.free(filtering);
-//                            break :ret database.query(schema.Image).whereRaw("tags LIKE", tags);
-//                        },
-//                    };
-//
-//                    std.log.info("found: {s}", .{std.json.fmt(try request.findAll(), .{})});
-//                },
+                .Fetch => |filter| {
+                    const request = switch (filter.value) {
+                        .description    => |desc| database.like("description", desc),
+                        .filename       => |name| database.like("filename", name),
+                        .tags           => |tags| database.like("tags", tags),
+                    };
+
+                    if (request) |success| {
+                        std.log.info("parsed request successfully: {s}", .{std.json.fmt(success, .{})});
+                    }
+                    else |err| {
+                        std.log.err("failed to parse response {s}", .{std.json.fmt(err, .{})});
+                    }
+                },
                 .Insert => |to_insert| {
                     for (to_insert) |next| {
-                        _ = try database.insert(next);
+                        _ = next;
                         //_ = try insert(alloc, &database, &client, next);
                     }
                 },
@@ -97,7 +90,7 @@ pub fn main() !void {
 }
 
 test "init" {
-    std.testing.log_level = std.log.Level.info;
+    std.testing.log_level = std.log.Level.debug;
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
     const alloc = gpa.allocator();
@@ -118,7 +111,7 @@ test "init" {
 }
 
 test "search" {
-    std.testing.log_level = std.log.Level.info;
+    std.testing.log_level = std.log.Level.debug;
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
     const alloc = gpa.allocator();
@@ -134,4 +127,20 @@ test "search" {
     std.log.info("col search", .{});
     const results = try database.like("tags", "meme");
     std.log.info("search: {s}\t found: {s}", .{"meme", std.json.fmt(results, .{})});
+}
+
+test "generate" {
+    std.testing.log_level = std.log.Level.debug;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const alloc = gpa.allocator();
+
+    var database = try Database.init(alloc, "https://some.url/v1", "database", "database/test.sqlite");
+    defer database.deinit();
+
+    std.log.info("grab all memes about spongebob", .{});
+    const bases = try database.like("tags", "Spongebob");
+    std.log.info("Found {d} memes of spongebob", .{bases.len});
+
+    //todo implement comfyui api
 }

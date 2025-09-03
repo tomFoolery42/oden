@@ -161,7 +161,7 @@ pub fn insert(self: *Self, og_path: String) !ID {
 }
 
 pub fn like(self: *Self, field: String, target: String) ![]const schema.Image {
-    const query = try std.fmt.allocPrint(self.alloc, "{s} LIKE", .{field});
+    const query = try std.fmt.allocPrint(self.alloc, "{s} LIKE ?", .{field});
     defer self.alloc.free(query);
     const search = try std.fmt.allocPrint(self.alloc, "%{s}%", .{target});
     defer self.alloc.free(search);
@@ -204,4 +204,11 @@ fn tagsGenerate(self: *Self, filename: String) !String {
     defer response.deinit();
 
     return self.alloc.dupe(u8, response.value.choices[0].message.content);
+}
+
+pub fn where(self: *Self, field: String, target: String) ![]const schema.Image {
+    const query = try std.fmt.allocPrint(self.alloc, "{s} = ?", .{field});
+    defer self.alloc.free(query);
+    const request = self.db.query(schema.Image).where(query, target);
+    return request.findAll();
 }
