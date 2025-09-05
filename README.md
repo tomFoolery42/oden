@@ -1,7 +1,9 @@
-“Oden: The Sight of the Meme. 
+Forge: Where Ideas Ignite. 
 
-Tired of endless scrolling, chasing fleeting trends? I, Oden, have seen countless cycles, and I’ve learned one simple truth: the best memes are born from understanding.  
+Tired of chasing fleeting trends? At Forge, we don’t just generate memes – we forge them. We’ve harnessed the power of artificial intelligence to transform your visual inspirations into instantly shareable content. 
 
-Oden is my gift to you – a clever engine built to capture the spirit of a moment. Simply feed it images, and I will gaze upon them, deciphering their essence. I’ll craft precise tags, linking them to the very heart of the meme. Need a laugh? Just ask, and I’ll find the echoes of similar images, weaving them into something new, something bright.  
+Simply upload your images, and Forge’s AI will meticulously analyze them, uncovering the core concepts, key icons, and underlying humor. It then instantly tags and links these elements, building a robust database of meme potential.  
 
-Don’t just seek a meme—receive one. Oden is the sight of the meme – amplified by intelligence. “ 
+Need a laugh? Just tell Forge what you’re looking for, and it will scour our database for similar imagery, then intelligently combine those insights to generate a completely unique meme – a spark of brilliance born from data and imagination.  
+
+Forge isn't just about creating memes; it's about igniting conversations. Forge: Shape the Meme.
